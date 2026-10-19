@@ -1,5 +1,5 @@
-import { useCallback, useEffect } from 'react'
-import { Link, useParams, useSearchParams } from 'react-router'
+import { useCallback, useEffect, type ReactNode } from 'react'
+import { Link, Navigate, useParams, useSearchParams } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowLeftIcon,
@@ -29,8 +29,9 @@ import {
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import type { Questionario } from '@/data/questions'
+import type { QuestionarioMontado } from '@/data/questions'
 import { contarTratadas, indexarRespostas, perguntaTratada, type Resposta } from '@/data/respostas'
+import type { Anexo, ProjetoComAnexos } from '@/data/status'
 import { buscarMeuPerfil, chavePerfil } from '@/features/auth/api'
 import { useAuth } from '@/features/auth/useAuth'
 import { cn, formatarDataHora } from '@/lib/utils'
@@ -39,21 +40,35 @@ import {
   buscarProjeto,
   buscarRespostas,
   chaves,
-  enviarBriefing,
+  enviarQuestionario,
   salvarResposta,
-  type Projeto,
   type RascunhoResposta,
 } from './api'
 import { QuestionField } from './QuestionField'
-import { useQuestionario } from './useQuestionario'
+import { useCatalogo } from './useCatalogo'
 
-export function BriefingPage() {
+/** Rota /questionario/:projetoId: vai para o único questionário ou para a lista. */
+export function IrParaQuestionario() {
   const { projetoId = '' } = useParams()
+  const projeto = useQuery({ queryKey: chaves.projeto(projetoId), queryFn: () => buscarProjeto(projetoId) })
+  if (projeto.isPending) return <TelaCarregando />
+  const anexos = projeto.data?.anexos ?? []
+  return (
+    <Navigate
+      to={anexos.length === 1 ? `/questionario/${projetoId}/${anexos[0].questionario_id}` : '/questionario'}
+      replace
+    />
+  )
+}
+
+/** Um questionário anexado a um projeto: responder ou, se já enviado, ver as respostas. */
+export function BriefingPage() {
+  const { projetoId = '', questionarioId = '' } = useParams()
   const { user } = useAuth()
   const userId = user!.id
 
   const perfil = useQuery({ queryKey: chavePerfil(userId), queryFn: () => buscarMeuPerfil(userId) })
-  const questionario = useQuestionario()
+  const catalogo = useCatalogo()
   const projeto = useQuery({ queryKey: chaves.projeto(projetoId), queryFn: () => buscarProjeto(projetoId) })
   const meusProjetos = useQuery({
     queryKey: chaves.meusProjetos(userId),
@@ -67,11 +82,11 @@ export function BriefingPage() {
     refetchOnWindowFocus: false,
   })
 
-  if (perfil.isPending || questionario.isPending || projeto.isPending || respostas.isPending) {
+  if (perfil.isPending || catalogo.isPending || projeto.isPending || respostas.isPending) {
     return <TelaCarregando />
   }
 
-  if (perfil.isError || questionario.isError || projeto.isError || respostas.isError) {
+  if (perfil.isError || catalogo.isError || projeto.isError || respostas.isError) {
     return (
       <Alert variant="destructive">
         <CircleAlertIcon />
@@ -85,11 +100,14 @@ export function BriefingPage() {
     )
   }
 
-  if (!projeto.data) {
+  const anexo = projeto.data?.anexos.find((a) => a.questionario_id === questionarioId)
+  const questionario = catalogo.data.porId.get(questionarioId)
+
+  if (!projeto.data || !anexo || !questionario) {
     return (
       <Alert>
         <CircleAlertIcon />
-        <AlertTitle>Projeto não encontrado</AlertTitle>
+        <AlertTitle>Questionário não encontrado</AlertTitle>
         <AlertDescription>
           <Link to="/questionario" className="underline underline-offset-2">
             Voltar para os meus projetos
@@ -108,28 +126,32 @@ export function BriefingPage() {
     )
   }
 
-  const variosProjetos = (meusProjetos.data?.length ?? 0) > 1
+  const temLista = (meusProjetos.data?.length ?? 0) > 1 || projeto.data.anexos.length > 1
 
   return (
     <div className="flex flex-col gap-6">
-      {variosProjetos && (
+      {temLista && (
         <Button variant="ghost" size="sm" asChild className="self-start">
           <Link to="/questionario">
             <ArrowLeftIcon />
-            Meus projetos
+            Projetos
           </Link>
         </Button>
       )}
-      {projeto.data.status === 'concluido' ? (
+      {anexo.status === 'concluido' ? (
         <BriefingEnviado
           projeto={projeto.data}
-          questionario={questionario.data}
+          anexo={anexo}
+          questionario={questionario}
           respostas={respostas.data}
         />
       ) : (
         <Questionario
+          // Recomeça da primeira seção ao trocar de questionário
+          key={questionarioId}
           projeto={projeto.data}
-          questionario={questionario.data}
+          anexo={anexo}
+          questionario={questionario}
           respostas={respostas.data}
         />
       )}
@@ -139,11 +161,13 @@ export function BriefingPage() {
 
 function BriefingEnviado({
   projeto,
+  anexo,
   questionario,
   respostas,
 }: {
-  projeto: Projeto
-  questionario: Questionario
+  projeto: ProjetoComAnexos
+  anexo: Anexo
+  questionario: QuestionarioMontado
   respostas: Resposta[]
 }) {
   return (
@@ -151,10 +175,10 @@ function BriefingEnviado({
       <div className="relative overflow-hidden rounded-2xl border bg-card p-6">
         <div className="absolute -top-16 -right-16 size-48 rounded-full bg-success/15 blur-3xl" aria-hidden />
         <CheckCircle2Icon className="size-8 text-success" />
-        <h1 className="mt-3 text-2xl font-semibold tracking-tight">{projeto.nome}</h1>
+        <p className="mt-3 font-mono text-xs tracking-[0.2em] text-primary uppercase">{questionario.info.nome}</p>
+        <h1 className="mt-1 text-2xl font-semibold tracking-tight">{projeto.nome}</h1>
         <p className="mt-1 text-muted-foreground">
-          Briefing enviado em {formatarDataHora(projeto.enviado_em)}. Para alterar, peça a reabertura a um
-          administrador.
+          Enviado em {formatarDataHora(anexo.enviado_em)}. Para alterar, peça a reabertura a um administrador.
         </p>
       </div>
       <ResumoRespostas questionario={questionario} respostas={indexarRespostas(respostas)} />
@@ -164,11 +188,13 @@ function BriefingEnviado({
 
 function Questionario({
   projeto,
+  anexo,
   questionario,
   respostas,
 }: {
-  projeto: Projeto
-  questionario: Questionario
+  projeto: ProjetoComAnexos
+  anexo: Anexo
+  questionario: QuestionarioMontado
   respostas: Resposta[]
 }) {
   const queryClient = useQueryClient()
@@ -208,14 +234,15 @@ function Questionario({
   const salvar = useCallback(
     async (r: RascunhoResposta) => {
       await salvarResposta(projeto.id, r)
-      // A primeira resposta muda o status no banco (trigger)
-      const atual = queryClient.getQueryData<Projeto>(chaves.projeto(projeto.id))
-      if (atual?.status === 'nao_iniciado') {
+      // A primeira resposta muda o status do questionário no banco (trigger)
+      const atual = queryClient.getQueryData<ProjetoComAnexos>(chaves.projeto(projeto.id))
+      const status = atual?.anexos.find((a) => a.questionario_id === questionario.info.id)?.status
+      if (status === 'nao_iniciado') {
         void queryClient.invalidateQueries({ queryKey: chaves.projeto(projeto.id) })
         void queryClient.invalidateQueries({ queryKey: ['projetos'] })
       }
     },
-    [queryClient, projeto.id],
+    [queryClient, projeto.id, questionario.info.id],
   )
 
   if (secoes.length === 0) {
@@ -233,10 +260,10 @@ function Questionario({
     <div className="grid gap-6 lg:grid-cols-[17rem_1fr] lg:items-start">
       <aside className="flex flex-col gap-5 lg:sticky lg:top-24">
         <div>
-          <p className="font-mono text-xs tracking-[0.2em] text-primary uppercase">Briefing</p>
+          <p className="font-mono text-xs tracking-[0.2em] text-primary uppercase">{questionario.info.nome}</p>
           <h1 className="mt-1 text-2xl leading-tight font-semibold tracking-tight">{projeto.nome}</h1>
           <div className="mt-2">
-            <StatusBriefing status={projeto.status} />
+            <StatusBriefing status={anexo.status} />
           </div>
         </div>
         <div className="flex flex-col gap-1">
@@ -330,7 +357,7 @@ function EtapaBotao({
   onClick: () => void
   rotulo: string
   indice?: number
-  icone?: React.ReactNode
+  icone?: ReactNode
 }) {
   return (
     <button
@@ -363,8 +390,8 @@ function Revisao({
   porId,
   irPara,
 }: {
-  projeto: Projeto
-  questionario: Questionario
+  projeto: ProjetoComAnexos
+  questionario: QuestionarioMontado
   porId: Map<string, Resposta>
   irPara: (etapa: number) => void
 }) {
@@ -378,13 +405,13 @@ function Revisao({
   const naReuniao = [...porId.values()].filter((r) => r.skipped && questionario.numero.has(r.question_id)).length
 
   const envio = useMutation({
-    mutationFn: () => enviarBriefing(projeto.id),
+    mutationFn: () => enviarQuestionario(projeto.id, questionario.info.id),
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: chaves.projeto(projeto.id) }),
         queryClient.invalidateQueries({ queryKey: ['projetos'] }),
       ])
-      toast.success('Briefing enviado')
+      toast.success('Questionário enviado')
     },
     onError: (e) => toast.error(e.message),
   })
@@ -393,7 +420,7 @@ function Revisao({
     <Card>
       <CardHeader>
         <CardTitle className="text-xl">Revisar e enviar</CardTitle>
-        <CardDescription>Depois de enviado, o briefing só pode ser alterado se um administrador reabrir.</CardDescription>
+        <CardDescription>Depois de enviado, só pode ser alterado se um administrador reabrir.</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         {faltando.length > 0 ? (
@@ -433,14 +460,14 @@ function Revisao({
           <AlertDialogTrigger asChild>
             <Button size="lg" className="self-end" disabled={faltando.length > 0 || envio.isPending}>
               {envio.isPending ? <Loader2Icon className="animate-spin" /> : <SendIcon />}
-              Enviar briefing
+              Enviar
             </Button>
           </AlertDialogTrigger>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Enviar o briefing de {projeto.nome}?</AlertDialogTitle>
+              <AlertDialogTitle>Enviar {questionario.info.nome}?</AlertDialogTitle>
               <AlertDialogDescription>
-                As respostas ficam bloqueadas para edição até um administrador reabrir o briefing.
+                As respostas ficam bloqueadas para edição até um administrador reabrir.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

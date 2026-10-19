@@ -165,7 +165,7 @@ export function PerguntaDialog({
       toast.success(pergunta ? 'Pergunta atualizada' : 'Pergunta criada')
       onAbertoChange(false)
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: chaves.questionario }),
+        queryClient.invalidateQueries({ queryKey: chaves.catalogo }),
         queryClient.invalidateQueries({ queryKey: chavesAdmin.contagemRespostas }),
       ])
     },

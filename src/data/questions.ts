@@ -7,6 +7,7 @@
 import type { Enums, Tables } from '@/lib/database.types'
 
 export type TipoPergunta = Enums<'tipo_pergunta'>
+export type LinhaQuestionario = Tables<'questionarios'>
 export type LinhaSecao = Tables<'secoes'>
 export type LinhaPergunta = Tables<'perguntas'>
 
@@ -91,6 +92,38 @@ export function linhaParaPergunta(l: LinhaPergunta): Pergunta {
         rotuloMax: l.rotulo_max ?? '',
       }
   }
+}
+
+/** Um questionário (grupo de perguntas) já montado, com os dados da tabela `questionarios`. */
+export interface QuestionarioMontado extends Questionario {
+  info: LinhaQuestionario
+}
+
+export interface Catalogo {
+  /** Questionários em ordem alfabética (padrão primeiro) */
+  lista: QuestionarioMontado[]
+  porId: Map<string, QuestionarioMontado>
+}
+
+export function montarCatalogo(
+  questionarios: LinhaQuestionario[],
+  secoes: LinhaSecao[],
+  perguntas: LinhaPergunta[],
+): Catalogo {
+  const lista = [...questionarios]
+    .sort((a, b) => Number(b.padrao) - Number(a.padrao) || a.nome.localeCompare(b.nome, 'pt-BR'))
+    .map((info) => {
+      const secoesDoQuestionario = secoes.filter((s) => s.questionario_id === info.id)
+      const ids = new Set(secoesDoQuestionario.map((s) => s.id))
+      return {
+        info,
+        ...montarQuestionario(
+          secoesDoQuestionario,
+          perguntas.filter((p) => ids.has(p.secao_id)),
+        ),
+      }
+    })
+  return { lista, porId: new Map(lista.map((q) => [q.info.id, q])) }
 }
 
 export function montarQuestionario(linhasSecao: LinhaSecao[], linhasPergunta: LinhaPergunta[]): Questionario {

@@ -2,14 +2,18 @@ import { supabase } from '@/lib/supabase'
 import type { Tables, TablesInsert } from '@/lib/database.types'
 import { invocarAdminUsers } from '@/lib/funcoes'
 import { agruparPorProjeto, type Resposta } from '@/data/respostas'
+import type { ProjetoComAnexos } from '@/data/status'
 
 export type Perfil = Tables<'profiles'>
 export type Projeto = Tables<'projetos'>
 export type Papel = 'cliente' | 'admin'
+export type { ProjetoComAnexos }
 
 export interface ClienteComProjetos extends Perfil {
-  projetos: Projeto[]
+  projetos: ProjetoComAnexos[]
 }
+
+const COM_ANEXOS = '*, anexos:projeto_questionarios(*)'
 
 export const chavesAdmin = {
   clientes: ['admin', 'clientes'] as const,
@@ -18,6 +22,7 @@ export const chavesAdmin = {
   projeto: (id: string) => ['admin', 'projeto', id] as const,
   respostas: (projetoId: string) => ['admin', 'respostas', projetoId] as const,
   contagemRespostas: ['admin', 'contagem-respostas'] as const,
+  usoQuestionarios: ['admin', 'uso-questionarios'] as const,
 }
 
 async function idsComPapel(papel: Papel): Promise<string[]> {
@@ -37,7 +42,7 @@ export async function listarClientes(): Promise<{
 
   const [perfis, projetos] = await Promise.all([
     supabase.from('profiles').select('*').in('id', ids).order('created_at', { ascending: false }),
-    supabase.from('projetos').select('*').in('cliente_id', ids).order('created_at'),
+    supabase.from('projetos').select(COM_ANEXOS).in('cliente_id', ids).order('created_at'),
   ])
   if (perfis.error) throw perfis.error
   if (projetos.error) throw projetos.error
@@ -59,12 +64,12 @@ export async function listarClientes(): Promise<{
 
 export async function buscarCliente(id: string): Promise<{
   cliente: Perfil | null
-  projetos: Projeto[]
+  projetos: ProjetoComAnexos[]
   respostas: Map<string, Map<string, Resposta>>
 }> {
   const [perfil, projetos] = await Promise.all([
     supabase.from('profiles').select('*').eq('id', id).maybeSingle(),
-    supabase.from('projetos').select('*').eq('cliente_id', id).order('created_at'),
+    supabase.from('projetos').select(COM_ANEXOS).eq('cliente_id', id).order('created_at'),
   ])
   if (perfil.error) throw perfil.error
   if (projetos.error) throw projetos.error
@@ -81,7 +86,7 @@ export async function buscarCliente(id: string): Promise<{
 export async function buscarProjetoComCliente(id: string) {
   const { data, error } = await supabase
     .from('projetos')
-    .select('*, cliente:profiles(*)')
+    .select('*, cliente:profiles(*), anexos:projeto_questionarios(*)')
     .eq('id', id)
     .maybeSingle()
   if (error) throw error
@@ -109,13 +114,37 @@ export async function renomearProjeto(id: string, nome: string): Promise<void> {
   if (error) throw new Error('Não foi possível renomear o projeto.')
 }
 
-/** Só o admin reabre um briefing enviado. */
-export async function reabrirBriefing(projetoId: string): Promise<void> {
+// Questionários anexados ao projeto ---------------------------------------
+
+export async function anexarQuestionario(projetoId: string, questionarioId: string): Promise<void> {
   const { error } = await supabase
-    .from('projetos')
+    .from('projeto_questionarios')
+    .insert({ projeto_id: projetoId, questionario_id: questionarioId })
+  if (error) {
+    throw new Error(
+      error.code === '23505' ? 'Este questionário já está no projeto.' : 'Não foi possível anexar o questionário.',
+    )
+  }
+}
+
+/** Remove o questionário do projeto (a tela só oferece isso quando não há respostas dele). */
+export async function removerQuestionario(projetoId: string, questionarioId: string): Promise<void> {
+  const { error } = await supabase
+    .from('projeto_questionarios')
+    .delete()
+    .eq('projeto_id', projetoId)
+    .eq('questionario_id', questionarioId)
+  if (error) throw new Error('Não foi possível remover o questionário.')
+}
+
+/** Só o admin reabre um questionário enviado. */
+export async function reabrirQuestionario(projetoId: string, questionarioId: string): Promise<void> {
+  const { error } = await supabase
+    .from('projeto_questionarios')
     .update({ status: 'em_andamento', enviado_em: null })
-    .eq('id', projetoId)
-  if (error) throw new Error('Não foi possível reabrir o briefing.')
+    .eq('projeto_id', projetoId)
+    .eq('questionario_id', questionarioId)
+  if (error) throw new Error('Não foi possível reabrir o questionário.')
 }
 
 /** Apaga o projeto e as respostas dele. */
@@ -160,7 +189,34 @@ export async function listarAdmins(): Promise<Perfil[]> {
 
 // Perguntas -------------------------------------------------------------------
 
+export type NovoQuestionario = TablesInsert<'questionarios'>
 export type NovaSecao = TablesInsert<'secoes'>
+
+export async function salvarQuestionario(q: NovoQuestionario): Promise<string> {
+  const { data, error } = await supabase.from('questionarios').upsert(q).select('id').single()
+  if (error) throw new Error('Não foi possível salvar o questionário.')
+  return data.id
+}
+
+export async function excluirQuestionario(id: string): Promise<void> {
+  const { error } = await supabase.from('questionarios').delete().eq('id', id)
+  if (error) {
+    throw new Error(
+      error.code === '23503'
+        ? 'O questionário ainda tem seções ou está anexado a projetos.'
+        : 'Não foi possível excluir o questionário.',
+    )
+  }
+}
+
+/** Em quantos projetos cada questionário está anexado. */
+export async function contarUsoDosQuestionarios(): Promise<Map<string, number>> {
+  const { data, error } = await supabase.from('projeto_questionarios').select('questionario_id')
+  if (error) throw error
+  const uso = new Map<string, number>()
+  for (const { questionario_id } of data) uso.set(questionario_id, (uso.get(questionario_id) ?? 0) + 1)
+  return uso
+}
 export type NovaPergunta = TablesInsert<'perguntas'>
 
 /** Id novo e estável (nunca muda depois de criado). */

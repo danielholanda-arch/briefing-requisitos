@@ -1,6 +1,6 @@
 import { Link, useNavigate, useParams } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
-import { ArrowLeftIcon, CircleAlertIcon, PrinterIcon } from 'lucide-react'
+import { ArrowLeftIcon, CircleAlertIcon, ClipboardListIcon, PrinterIcon } from 'lucide-react'
 import { BarraProgresso } from '@/components/BarraProgresso'
 import { TituloPagina } from '@/components/Indicador'
 import { ResumoRespostas } from '@/components/ResumoRespostas'
@@ -10,9 +10,11 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { contarTratadas, indexarRespostas } from '@/data/respostas'
-import { useQuestionario } from '@/features/questionario/useQuestionario'
+import { statusDoProjeto, ultimoEnvio } from '@/data/status'
+import { useCatalogo } from '@/features/questionario/useCatalogo'
 import { formatarDataHora } from '@/lib/utils'
 import { AcoesProjeto } from './AcoesProjeto'
+import { AcoesAnexo, AnexarQuestionario } from './AnexosProjeto'
 import { buscarProjetoComCliente, buscarRespostasDoProjeto, chavesAdmin } from './api'
 
 export function ProjetoDetalhePage() {
@@ -20,11 +22,11 @@ export function ProjetoDetalhePage() {
   const navigate = useNavigate()
   const projeto = useQuery({ queryKey: chavesAdmin.projeto(id), queryFn: () => buscarProjetoComCliente(id) })
   const respostas = useQuery({ queryKey: chavesAdmin.respostas(id), queryFn: () => buscarRespostasDoProjeto(id) })
-  const questionario = useQuestionario()
+  const catalogo = useCatalogo()
 
-  if (projeto.isPending || respostas.isPending || questionario.isPending) return <TelaCarregando />
+  if (projeto.isPending || respostas.isPending || catalogo.isPending) return <TelaCarregando />
 
-  if (projeto.isError || respostas.isError || questionario.isError || !projeto.data) {
+  if (projeto.isError || respostas.isError || catalogo.isError || !projeto.data) {
     return (
       <div className="flex flex-col gap-4">
         <Button variant="ghost" size="sm" asChild className="self-start">
@@ -37,7 +39,7 @@ export function ProjetoDetalhePage() {
           <CircleAlertIcon />
           <AlertTitle>{projeto.data === null ? 'Projeto não encontrado' : 'Erro ao carregar'}</AlertTitle>
           <AlertDescription>
-            {(projeto.error ?? respostas.error ?? questionario.error)?.message ?? 'Ele pode ter sido excluído.'}
+            {(projeto.error ?? respostas.error ?? catalogo.error)?.message ?? 'Ele pode ter sido excluído.'}
           </AlertDescription>
         </Alert>
       </div>
@@ -46,7 +48,6 @@ export function ProjetoDetalhePage() {
 
   const p = projeto.data
   const porId = indexarRespostas(respostas.data)
-  const naReuniao = respostas.data.filter((r) => r.skipped).length
 
   return (
     <div className="flex flex-col gap-8">
@@ -58,7 +59,7 @@ export function ProjetoDetalhePage() {
       </Button>
 
       <TituloPagina
-        sobretitulo="Briefing do projeto"
+        sobretitulo="Projeto"
         titulo={p.nome}
         descricao={
           <span className="flex flex-wrap items-center gap-2">
@@ -84,7 +85,7 @@ export function ProjetoDetalhePage() {
             <div className="flex flex-col gap-1">
               <dt className="text-muted-foreground">Status</dt>
               <dd>
-                <StatusBriefing status={p.status} />
+                <StatusBriefing status={statusDoProjeto(p.anexos)} />
               </dd>
             </div>
             <div className="flex flex-col gap-0.5">
@@ -92,23 +93,67 @@ export function ProjetoDetalhePage() {
               <dd className="font-medium">{formatarDataHora(p.created_at)}</dd>
             </div>
             <div className="flex flex-col gap-0.5">
-              <dt className="text-muted-foreground">Enviado em</dt>
-              <dd className="font-medium">{formatarDataHora(p.enviado_em)}</dd>
+              <dt className="text-muted-foreground">Último envio</dt>
+              <dd className="font-medium">{formatarDataHora(ultimoEnvio(p.anexos))}</dd>
             </div>
-            <div className="flex flex-col gap-1.5">
-              <dt className="text-muted-foreground">Progresso</dt>
-              <dd>
-                <BarraProgresso feitas={contarTratadas(questionario.data.ativas, porId)} total={questionario.data.ativas.length} />
-              </dd>
-              {naReuniao > 0 && (
-                <dd className="text-xs text-muted-foreground">{naReuniao} para tratar na reunião</dd>
-              )}
+            <div className="flex flex-col gap-0.5">
+              <dt className="text-muted-foreground">Questionários</dt>
+              <dd className="font-medium">{p.anexos.length}</dd>
             </div>
           </dl>
         </CardContent>
       </Card>
 
-      <ResumoRespostas questionario={questionario.data} respostas={porId} />
+      <section className="flex flex-col gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-xl font-semibold tracking-tight">Questionários do projeto</h2>
+          <AnexarQuestionario projeto={p} catalogo={catalogo.data} />
+        </div>
+
+        {p.anexos.length === 0 && (
+          <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed p-10 text-center">
+            <ClipboardListIcon className="size-8 text-muted-foreground" />
+            <p className="font-medium">Nenhum questionário anexado</p>
+          </div>
+        )}
+
+        {p.anexos.map((a) => {
+          const q = catalogo.data.porId.get(a.questionario_id)
+          if (!q) return null
+          const idsDoQuestionario = new Set(q.porId.keys())
+          const respostasDoQuestionario = respostas.data.filter((r) => idsDoQuestionario.has(r.question_id))
+          const naReuniao = respostasDoQuestionario.filter((r) => r.skipped).length
+          return (
+            <div key={a.questionario_id} className="flex flex-col gap-3">
+              <Card>
+                <CardContent className="flex flex-wrap items-center gap-x-6 gap-y-3">
+                  <div className="min-w-48 flex-1">
+                    <p className="font-mono text-xs tracking-[0.2em] text-primary uppercase">Questionário</p>
+                    <h3 className="text-lg font-semibold">{q.info.nome}</h3>
+                  </div>
+                  <StatusBriefing status={a.status} />
+                  <div className="w-48">
+                    <BarraProgresso feitas={contarTratadas(q.ativas, porId)} total={q.ativas.length} />
+                    {naReuniao > 0 && (
+                      <p className="mt-1 text-xs text-muted-foreground">{naReuniao} para tratar na reunião</p>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {a.status === 'concluido' ? `Enviado em ${formatarDataHora(a.enviado_em)}` : 'Não enviado'}
+                  </p>
+                  <AcoesAnexo
+                    projeto={p}
+                    anexo={a}
+                    questionario={q}
+                    temRespostas={respostasDoQuestionario.length > 0}
+                  />
+                </CardContent>
+              </Card>
+              <ResumoRespostas questionario={q} respostas={porId} />
+            </div>
+          )
+        })}
+      </section>
     </div>
   )
 }

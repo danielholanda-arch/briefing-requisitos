@@ -1,8 +1,8 @@
 # Briefing de Projeto
 
 Sistema de levantamento de requisitos da UniCatólica. O admin cadastra clientes (matrícula + senha
-provisória) e os projetos de cada um; o cliente entra e responde um questionário por projeto antes
-da primeira reunião; o admin vê as respostas e edita as perguntas pelo painel.
+provisória) e os projetos de cada um, e anexa a cada projeto os questionários (grupos de perguntas)
+que ele deve responder; o cliente responde e envia cada questionário; o admin vê as respostas.
 
 ## Stack
 - React 19 + TypeScript (strict) + Vite
@@ -30,11 +30,14 @@ src/
                   tema.ts, utils.ts
   components/     Cabecalho, Marca, FundoFuturista (login), ResumoRespostas, StatusBriefing…
   components/ui/  componentes do shadcn (não editar à mão sem motivo)
-  data/           questions.ts (tipos + montagem do questionário a partir do banco), respostas.ts
+  data/           questions.ts (tipos + montagem do catálogo de questionários), respostas.ts,
+                  status.ts (status por questionário anexado e status geral do projeto)
   features/
     auth/         LoginPage, AuthProvider, RequireRole, matricula.ts
-    admin/        Clientes, Cliente, Projeto, Perguntas (editor), Administradores + api.ts
-    questionario/ ProjetosPage, BriefingPage, QuestionField, useAutosave, useQuestionario + api.ts
+    admin/        Clientes, Cliente, Projeto (+ AnexosProjeto), Questionarios, Perguntas (editor de um
+                  questionário), Administradores + api.ts
+    questionario/ ProjetosPage, BriefingPage (/questionario/:projetoId/:questionarioId),
+                  QuestionField, useAutosave, useCatalogo + api.ts
 supabase/
   migrations/     SQL versionado (fonte da verdade do schema)
   functions/      admin-users (criar cliente/admin, resetar senha, ativar/desativar, excluir,
@@ -50,7 +53,7 @@ Cada feature tem um `api.ts` com as chamadas ao Supabase; componentes não chama
 - Senha: o admin define uma senha provisória (padrão `ead123`, em `matricula.ts`) no cadastro e no
   reset. Com `profiles.senha_provisoria = true` o cliente é obrigado a criar uma senha própria
   (mín. 8) antes de responder; a troca é a ação `trocar_senha` da Edge Function, e o RLS
-  (`private.pode_responder(projeto)`) bloqueia respostas enquanto a senha for provisória. Vale também
+  (`private.pode_responder(projeto, pergunta)`) bloqueia respostas enquanto a senha for provisória. Vale também
   para admins novos (o `RequireRole` mostra a troca de senha antes de qualquer página).
 - Funções auxiliares do RLS ficam no schema `private` (fora da API), não em `public`.
 - `profiles.email` é só contato (opcional, formato validado por constraint); o login continua
@@ -59,9 +62,14 @@ Cada feature tem um `api.ts` com as chamadas ao Supabase; componentes não chama
   admins pelo painel; ninguém age sobre a própria conta e admins não são excluídos (só desativados).
 - Um cliente pode ter vários `projetos`; cada projeto tem o seu briefing. O cadastro do cliente já
   cria o primeiro projeto; os demais o admin cria na página do cliente.
-- Status é do PROJETO: `nao_iniciado` → `em_andamento` (trigger na 1ª resposta) →
-  `concluido` (RPC `enviar_briefing(_projeto)`). Só o admin reabre.
-- Perguntas ficam no banco (`secoes`, `perguntas`) e os admins editam em /admin/perguntas.
+- Questionários (`questionarios`) são grupos de seções e perguntas. São anexados aos projetos em
+  `projeto_questionarios`; os marcados como `padrao` entram sozinhos em todo projeto novo (trigger).
+  Seção não troca de questionário e pergunta não muda de questionário (triggers bloqueiam).
+- Status é de cada QUESTIONÁRIO ANEXADO (`projeto_questionarios.status`): `nao_iniciado` →
+  `em_andamento` (trigger na 1ª resposta) → `concluido` (RPC `enviar_briefing(_projeto, _questionario)`).
+  Depois de enviado, ninguém edita as respostas; só o admin reabre. O status geral do projeto é
+  calculado no front (`statusDoProjeto`).
+- Perguntas ficam no banco (`secoes`, `perguntas`) e os admins editam em /admin/questionarios/:id.
   O `id` da pergunta é o `answers.question_id` e NUNCA muda (trigger bloqueia). O tipo só muda
   enquanto ninguém respondeu; pergunta respondida não se exclui (FK): arquiva-se (`ativa = false`).
 - Respostas: tabela `answers`, chave (projeto_id, question_id), salvas com upsert.

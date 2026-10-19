@@ -1,7 +1,9 @@
-import { useState, type FormEvent } from 'react'
+import { useState, type ComponentProps, type FormEvent } from 'react'
+import { Link, useParams } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   ArchiveIcon,
+  ArrowLeftIcon,
   ArchiveRestoreIcon,
   ArrowDownIcon,
   ArrowUpIcon,
@@ -42,7 +44,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { ROTULO_TIPO, type Pergunta, type Secao } from '@/data/questions'
 import { chaves } from '@/features/questionario/api'
-import { useQuestionario } from '@/features/questionario/useQuestionario'
+import { useCatalogo } from '@/features/questionario/useCatalogo'
 import { cn } from '@/lib/utils'
 import {
   chavesAdmin,
@@ -59,9 +61,11 @@ import { PerguntaDialog } from './PerguntaDialog'
 type EdicaoPergunta = { secaoId: string; pergunta?: Pergunta } | null
 type Exclusao = { tipo: 'secao'; secao: Secao } | { tipo: 'pergunta'; pergunta: Pergunta } | null
 
+/** Editor das seções e perguntas de UM questionário (/admin/questionarios/:id). */
 export function PerguntasPage() {
+  const { id: questionarioId = '' } = useParams()
   const queryClient = useQueryClient()
-  const questionario = useQuestionario()
+  const catalogo = useCatalogo()
   const contagem = useQuery({ queryKey: chavesAdmin.contagemRespostas, queryFn: contarRespostasPorPergunta })
 
   const [editarPergunta, setEditarPergunta] = useState<EdicaoPergunta>(null)
@@ -70,7 +74,7 @@ export function PerguntasPage() {
 
   const atualizar = () =>
     Promise.all([
-      queryClient.invalidateQueries({ queryKey: chaves.questionario }),
+      queryClient.invalidateQueries({ queryKey: chaves.catalogo }),
       queryClient.invalidateQueries({ queryKey: chavesAdmin.contagemRespostas }),
     ])
 
@@ -104,29 +108,43 @@ export function PerguntasPage() {
     },
   })
 
-  if (questionario.isPending) return <TelaCarregando />
-  if (questionario.isError) {
+  if (catalogo.isPending) return <TelaCarregando />
+  if (catalogo.isError) {
     return (
       <Alert variant="destructive">
         <CircleAlertIcon />
         <AlertTitle>Não foi possível carregar as perguntas</AlertTitle>
-        <AlertDescription>{questionario.error.message}</AlertDescription>
+        <AlertDescription>{catalogo.error.message}</AlertDescription>
       </Alert>
     )
   }
 
-  const { completo, numero } = questionario.data
+  const questionario = catalogo.data.porId.get(questionarioId)
+  if (!questionario) {
+    return (
+      <div className="flex flex-col gap-4">
+        <Voltar />
+        <Alert>
+          <CircleAlertIcon />
+          <AlertTitle>Questionário não encontrado</AlertTitle>
+        </Alert>
+      </div>
+    )
+  }
+
+  const { completo, numero } = questionario
   const respostasDe = (id: string) => contagem.data?.get(id) ?? 0
   const proximaOrdem = (secaoId: string) =>
     Math.max(0, ...(completo.find((s) => s.id === secaoId)?.perguntas.map((p) => p.ordem) ?? [])) + 10
-  const totalAtivas = questionario.data.ativas.length
+  const totalAtivas = questionario.ativas.length
 
   return (
     <div className="flex flex-col gap-8">
+      <Voltar />
       <TituloPagina
         sobretitulo="Questionário"
-        titulo="Perguntas"
-        descricao={`${totalAtivas} perguntas ativas em ${questionario.data.secoes.length} seções`}
+        titulo={questionario.info.nome}
+        descricao={`${totalAtivas} perguntas ativas em ${questionario.secoes.length} seções`}
         acoes={
           <Button onClick={() => setEditarSecao({})}>
             <PlusIcon />
@@ -276,6 +294,7 @@ export function PerguntasPage() {
       )}
 
       <SecaoDialog
+        questionarioId={questionarioId}
         aberto={editarSecao !== null}
         secao={editarSecao?.secao}
         proximaOrdem={Math.max(0, ...completo.map((s) => s.ordem)) + 10}
@@ -314,11 +333,22 @@ export function PerguntasPage() {
   )
 }
 
+function Voltar() {
+  return (
+    <Button variant="ghost" size="sm" asChild className="self-start">
+      <Link to="/admin/questionarios">
+        <ArrowLeftIcon />
+        Questionários
+      </Link>
+    </Button>
+  )
+}
+
 function BotaoIcone({
   rotulo,
   children,
   ...props
-}: { rotulo: string } & React.ComponentProps<typeof Button>) {
+}: { rotulo: string } & ComponentProps<typeof Button>) {
   return (
     <Button variant="ghost" size="icon-sm" aria-label={rotulo} title={rotulo} {...props}>
       {children}
@@ -327,12 +357,14 @@ function BotaoIcone({
 }
 
 function SecaoDialog({
+  questionarioId,
   aberto,
   secao,
   proximaOrdem,
   onFechar,
   onSalva,
 }: {
+  questionarioId: string
   aberto: boolean
   secao?: Secao
   proximaOrdem: number
@@ -354,6 +386,7 @@ function SecaoDialog({
     mutationFn: () =>
       salvarSecao({
         id: secao?.id ?? gerarId('s'),
+        questionario_id: questionarioId,
         titulo: titulo.trim(),
         descricao: descricao.trim() || null,
         ordem: secao?.ordem ?? proximaOrdem,

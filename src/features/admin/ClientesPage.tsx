@@ -16,8 +16,8 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { contarTratadas } from '@/data/respostas'
-import { useQuestionario } from '@/features/questionario/useQuestionario'
+import { progressoDoProjeto, statusDoProjeto } from '@/data/status'
+import { useCatalogo } from '@/features/questionario/useCatalogo'
 import { formatarDataHora } from '@/lib/utils'
 import { AcoesUsuario } from './AcoesUsuario'
 import { chavesAdmin, listarClientes, type ClienteComProjetos } from './api'
@@ -35,12 +35,11 @@ function combina(c: ClienteComProjetos, busca: string) {
 export function ClientesPage() {
   const [busca, setBusca] = useState('')
   const dados = useQuery({ queryKey: chavesAdmin.clientes, queryFn: listarClientes })
-  const questionario = useQuestionario()
+  const catalogo = useCatalogo()
 
   const clientes = dados.data?.clientes ?? []
   const projetos = clientes.flatMap((c) => c.projetos)
   const lista = clientes.filter((c) => combina(c, busca))
-  const total = questionario.data?.ativas.length ?? 0
 
   return (
     <div className="flex flex-col gap-8">
@@ -55,13 +54,13 @@ export function ClientesPage() {
         <Indicador rotulo="Projetos" valor={projetos.length} icone={<FolderKanbanIcon />} />
         <Indicador
           rotulo="Em andamento"
-          valor={projetos.filter((p) => p.status === 'em_andamento').length}
+          valor={projetos.filter((p) => statusDoProjeto(p.anexos) === 'em_andamento').length}
           icone={<TimerIcon />}
           destaque="primario"
         />
         <Indicador
           rotulo="Enviados"
-          valor={projetos.filter((p) => p.status === 'concluido').length}
+          valor={projetos.filter((p) => statusDoProjeto(p.anexos) === 'concluido').length}
           icone={<SendIcon />}
           destaque="sucesso"
         />
@@ -133,18 +132,24 @@ export function ClientesPage() {
                       <span className="text-xs text-muted-foreground">Nenhum projeto</span>
                     ) : (
                       <ul className="flex flex-col gap-1.5">
-                        {c.projetos.map((p) => (
-                          <li key={p.id} className="flex flex-wrap items-center gap-2">
-                            <Link to={`/admin/projetos/${p.id}`} className="text-sm hover:text-primary hover:underline">
-                              {p.nome}
-                            </Link>
-                            <StatusBriefing status={p.status} />
-                            <span className="font-mono text-xs text-muted-foreground tabular-nums">
-                              {contarTratadas(questionario.data?.ativas ?? [], dados.data.respostas.get(p.id) ?? new Map())}/
-                              {total}
-                            </span>
-                          </li>
-                        ))}
+                        {c.projetos.map((p) => {
+                          const { feitas, total } = progressoDoProjeto(
+                            p,
+                            catalogo.data,
+                            dados.data.respostas.get(p.id) ?? new Map(),
+                          )
+                          return (
+                            <li key={p.id} className="flex flex-wrap items-center gap-2">
+                              <Link to={`/admin/projetos/${p.id}`} className="text-sm hover:text-primary hover:underline">
+                                {p.nome}
+                              </Link>
+                              <StatusBriefing status={statusDoProjeto(p.anexos)} />
+                              <span className="font-mono text-xs text-muted-foreground tabular-nums">
+                                {feitas}/{total}
+                              </span>
+                            </li>
+                          )
+                        })}
                       </ul>
                     )}
                   </TableCell>

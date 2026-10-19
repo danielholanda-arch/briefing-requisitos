@@ -160,32 +160,68 @@ export type Database = {
         }
         Relationships: []
       }
+      projeto_questionarios: {
+        Row: {
+          created_at: string
+          enviado_em: string | null
+          projeto_id: string
+          questionario_id: string
+          status: Database["public"]["Enums"]["briefing_status"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          enviado_em?: string | null
+          projeto_id: string
+          questionario_id: string
+          status?: Database["public"]["Enums"]["briefing_status"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          enviado_em?: string | null
+          projeto_id?: string
+          questionario_id?: string
+          status?: Database["public"]["Enums"]["briefing_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "projeto_questionarios_projeto_id_fkey"
+            columns: ["projeto_id"]
+            isOneToOne: false
+            referencedRelation: "projetos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "projeto_questionarios_questionario_id_fkey"
+            columns: ["questionario_id"]
+            isOneToOne: false
+            referencedRelation: "questionarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       projetos: {
         Row: {
           cliente_id: string
           created_at: string
-          enviado_em: string | null
           id: string
           nome: string
-          status: Database["public"]["Enums"]["briefing_status"]
           updated_at: string
         }
         Insert: {
           cliente_id: string
           created_at?: string
-          enviado_em?: string | null
           id?: string
           nome: string
-          status?: Database["public"]["Enums"]["briefing_status"]
           updated_at?: string
         }
         Update: {
           cliente_id?: string
           created_at?: string
-          enviado_em?: string | null
           id?: string
           nome?: string
-          status?: Database["public"]["Enums"]["briefing_status"]
           updated_at?: string
         }
         Relationships: [
@@ -198,12 +234,40 @@ export type Database = {
           },
         ]
       }
+      questionarios: {
+        Row: {
+          created_at: string
+          descricao: string | null
+          id: string
+          nome: string
+          padrao: boolean
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          nome: string
+          padrao?: boolean
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          nome?: string
+          padrao?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
       secoes: {
         Row: {
           created_at: string
           descricao: string | null
           id: string
           ordem: number
+          questionario_id: string
           titulo: string
           updated_at: string
         }
@@ -212,6 +276,7 @@ export type Database = {
           descricao?: string | null
           id: string
           ordem?: number
+          questionario_id: string
           titulo: string
           updated_at?: string
         }
@@ -220,10 +285,19 @@ export type Database = {
           descricao?: string | null
           id?: string
           ordem?: number
+          questionario_id?: string
           titulo?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "secoes_questionario_id_fkey"
+            columns: ["questionario_id"]
+            isOneToOne: false
+            referencedRelation: "questionarios"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
@@ -245,7 +319,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      enviar_briefing: { Args: { _projeto: string }; Returns: undefined }
+      enviar_briefing: {
+        Args: { _projeto: string; _questionario: string }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role: "admin" | "cliente"

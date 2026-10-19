@@ -11,7 +11,8 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { contarTratadas } from '@/data/respostas'
-import { useQuestionario } from '@/features/questionario/useQuestionario'
+import { statusDoProjeto } from '@/data/status'
+import { useCatalogo } from '@/features/questionario/useCatalogo'
 import { formatarDataHora } from '@/lib/utils'
 import { AcoesProjeto } from './AcoesProjeto'
 import { AcoesUsuario } from './AcoesUsuario'
@@ -22,11 +23,11 @@ export function ClienteDetalhePage() {
   const { id = '' } = useParams()
   const navigate = useNavigate()
   const dados = useQuery({ queryKey: chavesAdmin.cliente(id), queryFn: () => buscarCliente(id) })
-  const questionario = useQuestionario()
+  const catalogo = useCatalogo()
 
-  if (dados.isPending || questionario.isPending) return <TelaCarregando />
+  if (dados.isPending || catalogo.isPending) return <TelaCarregando />
 
-  if (dados.isError || questionario.isError || !dados.data.cliente) {
+  if (dados.isError || catalogo.isError || !dados.data.cliente) {
     return (
       <div className="flex flex-col gap-4">
         <Voltar />
@@ -34,7 +35,7 @@ export function ClienteDetalhePage() {
           <CircleAlertIcon />
           <AlertTitle>{dados.data?.cliente === null ? 'Usuário não encontrado' : 'Erro ao carregar'}</AlertTitle>
           <AlertDescription>
-            {(dados.error ?? questionario.error)?.message ?? 'Ele pode ter sido excluído.'}
+            {(dados.error ?? catalogo.error)?.message ?? 'Ele pode ter sido excluído.'}
           </AlertDescription>
         </Alert>
       </div>
@@ -42,7 +43,6 @@ export function ClienteDetalhePage() {
   }
 
   const { cliente, projetos, respostas } = dados.data
-  const total = questionario.data.ativas.length
 
   return (
     <div className="flex flex-col gap-8">
@@ -108,16 +108,30 @@ export function ClienteDetalhePage() {
                     <AcoesProjeto projeto={p} />
                   </div>
                   <div>
-                    <StatusBriefing status={p.status} />
+                    <StatusBriefing status={statusDoProjeto(p.anexos)} />
                   </div>
                 </CardHeader>
-                <CardContent className="flex flex-col gap-2">
-                  <BarraProgresso feitas={contarTratadas(questionario.data.ativas, respostas.get(p.id) ?? new Map())} total={total} />
-                  <p className="text-xs text-muted-foreground">
-                    {p.status === 'concluido'
-                      ? `Enviado em ${formatarDataHora(p.enviado_em)}`
-                      : `Atualizado em ${formatarDataHora(p.updated_at)}`}
-                  </p>
+                <CardContent className="flex flex-col gap-3">
+                  {p.anexos.length === 0 && (
+                    <p className="text-sm text-muted-foreground">Nenhum questionário anexado.</p>
+                  )}
+                  {p.anexos.map((a) => {
+                    const q = catalogo.data.porId.get(a.questionario_id)
+                    if (!q) return null
+                    return (
+                      <div key={a.questionario_id} className="flex flex-col gap-1.5">
+                        <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                          <span className="font-medium">{q.info.nome}</span>
+                          <StatusBriefing status={a.status} />
+                        </div>
+                        <BarraProgresso
+                          feitas={contarTratadas(q.ativas, respostas.get(p.id) ?? new Map())}
+                          total={q.ativas.length}
+                        />
+                      </div>
+                    )
+                  })}
+                  <p className="text-xs text-muted-foreground">Criado em {formatarDataHora(p.created_at)}</p>
                 </CardContent>
                 <CardFooter>
                   <Button asChild variant="outline" className="w-full">

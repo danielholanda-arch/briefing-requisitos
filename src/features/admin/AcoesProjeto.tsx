@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { EllipsisVerticalIcon, PencilIcon, RotateCcwIcon, Trash2Icon } from 'lucide-react'
+import { EllipsisVerticalIcon, PencilIcon, Trash2Icon } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   AlertDialog,
@@ -20,58 +20,33 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { chavesAdmin, excluirProjeto, reabrirBriefing, type Projeto } from './api'
+import { chavesAdmin, excluirProjeto, type Projeto } from './api'
 import { ProjetoDialog } from './ProjetoDialog'
 
-type Acao = 'reabrir' | 'excluir'
-
-/** Reabrir, renomear ou excluir um projeto. */
+/** Renomear ou excluir um projeto (reabrir é por questionário, em AcoesAnexo). */
 export function AcoesProjeto({ projeto, onExcluido }: { projeto: Projeto; onExcluido?: () => void }) {
   const queryClient = useQueryClient()
-  const [confirmar, setConfirmar] = useState<Acao | null>(null)
+  const [confirmarExclusao, setConfirmarExclusao] = useState(false)
   const [renomear, setRenomear] = useState(false)
 
-  const acao = useMutation({
-    mutationFn: async (a: Acao) => {
-      if (a === 'reabrir') {
-        await reabrirBriefing(projeto.id)
-        return 'Briefing reaberto para edição'
-      }
-      await excluirProjeto(projeto.id)
-      return 'Projeto excluído'
-    },
-    onSuccess: async (mensagem, a) => {
-      setConfirmar(null)
-      toast.success(mensagem)
-      if (a === 'excluir') {
-        queryClient.removeQueries({ queryKey: chavesAdmin.projeto(projeto.id) })
-        onExcluido?.()
-      }
+  const exclusao = useMutation({
+    mutationFn: () => excluirProjeto(projeto.id),
+    onSuccess: async () => {
+      setConfirmarExclusao(false)
+      toast.success('Projeto excluído')
+      queryClient.removeQueries({ queryKey: chavesAdmin.projeto(projeto.id) })
+      onExcluido?.()
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: chavesAdmin.clientes }),
         queryClient.invalidateQueries({ queryKey: chavesAdmin.cliente(projeto.cliente_id) }),
-        a === 'reabrir' && queryClient.invalidateQueries({ queryKey: chavesAdmin.projeto(projeto.id) }),
+        queryClient.invalidateQueries({ queryKey: chavesAdmin.usoQuestionarios }),
       ])
     },
     onError: (e) => {
-      setConfirmar(null)
+      setConfirmarExclusao(false)
       toast.error(e.message)
     },
   })
-
-  const textos = {
-    reabrir: {
-      titulo: 'Reabrir o briefing?',
-      descricao: `O usuário poderá editar as respostas de "${projeto.nome}" e precisará enviar de novo.`,
-      botao: 'Reabrir',
-    },
-    excluir: {
-      titulo: 'Excluir o projeto?',
-      descricao: `Isto apaga "${projeto.nome}" e TODAS as respostas dele. Não dá para desfazer.`,
-      botao: 'Excluir projeto',
-    },
-  }
-  const atual = confirmar ? textos[confirmar] : null
 
   return (
     <>
@@ -86,14 +61,8 @@ export function AcoesProjeto({ projeto, onExcluido }: { projeto: Projeto; onExcl
             <PencilIcon />
             Renomear
           </DropdownMenuItem>
-          {projeto.status === 'concluido' && (
-            <DropdownMenuItem onSelect={() => setConfirmar('reabrir')}>
-              <RotateCcwIcon />
-              Reabrir briefing
-            </DropdownMenuItem>
-          )}
           <DropdownMenuSeparator />
-          <DropdownMenuItem variant="destructive" onSelect={() => setConfirmar('excluir')}>
+          <DropdownMenuItem variant="destructive" onSelect={() => setConfirmarExclusao(true)}>
             <Trash2Icon />
             Excluir projeto
           </DropdownMenuItem>
@@ -107,29 +76,30 @@ export function AcoesProjeto({ projeto, onExcluido }: { projeto: Projeto; onExcl
         onAbertoChange={setRenomear}
       />
 
-      <AlertDialog open={confirmar !== null} onOpenChange={(a) => !a && !acao.isPending && setConfirmar(null)}>
+      <AlertDialog
+        open={confirmarExclusao}
+        onOpenChange={(a) => !a && !exclusao.isPending && setConfirmarExclusao(false)}
+      >
         <AlertDialogContent>
-          {atual && (
-            <>
-              <AlertDialogHeader>
-                <AlertDialogTitle>{atual.titulo}</AlertDialogTitle>
-                <AlertDialogDescription>{atual.descricao}</AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel disabled={acao.isPending}>Cancelar</AlertDialogCancel>
-                <AlertDialogAction
-                  variant={confirmar === 'excluir' ? 'destructive' : 'default'}
-                  disabled={acao.isPending}
-                  onClick={(e) => {
-                    e.preventDefault()
-                    if (confirmar) acao.mutate(confirmar)
-                  }}
-                >
-                  {atual.botao}
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </>
-          )}
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir o projeto?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Isto apaga "{projeto.nome}" e TODAS as respostas dele. Não dá para desfazer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={exclusao.isPending}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={exclusao.isPending}
+              onClick={(e) => {
+                e.preventDefault()
+                exclusao.mutate()
+              }}
+            >
+              Excluir projeto
+            </AlertDialogAction>
+          </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </>
