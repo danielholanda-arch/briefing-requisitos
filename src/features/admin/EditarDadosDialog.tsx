@@ -16,10 +16,11 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { chavePerfil } from '@/features/auth/api'
 import { FORMATO_EMAIL } from '@/features/auth/matricula'
+import { formatarTelefone } from '@/lib/utils'
 import { atualizarDados, chavesAdmin, type DadosUsuario, type Papel, type Perfil } from './api'
 
 function dadosDe(u: Perfil): DadosUsuario {
-  return { nome: u.nome, email: u.email ?? '', telefone: u.telefone ?? '', empresa: u.empresa ?? '' }
+  return { nome: u.nome, email: u.email ?? '', telefone: formatarTelefone(u.telefone ?? ''), empresa: u.empresa ?? '' }
 }
 
 /** Nome, e-mail, telefone e setor. Matrícula e papel não mudam por aqui. */
@@ -67,7 +68,11 @@ export function EditarDadosDialog({
   const campo = (chave: keyof DadosUsuario) => ({
     id: `editar-${chave}`,
     value: dados[chave],
-    onChange: (e: { target: { value: string } }) => setDados((d) => ({ ...d, [chave]: e.target.value })),
+    onChange: (e: { target: { value: string } }) =>
+      setDados((d) => ({
+        ...d,
+        [chave]: chave === 'telefone' ? formatarTelefone(e.target.value) : e.target.value,
+      })),
   })
 
   return (
@@ -89,7 +94,7 @@ export function EditarDadosDialog({
             </div>
             <div className="flex flex-col gap-2">
               <Label htmlFor="editar-telefone">Telefone</Label>
-              <Input {...campo('telefone')} type="tel" autoComplete="off" />
+              <Input {...campo('telefone')} type="tel" inputMode="tel" placeholder="(88) 99999-9999" autoComplete="off" />
             </div>
           </div>
           {papel === 'cliente' && (

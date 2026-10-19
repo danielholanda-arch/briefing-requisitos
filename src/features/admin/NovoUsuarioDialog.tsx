@@ -21,6 +21,7 @@ import {
   normalizarMatricula,
   SENHA_PADRAO,
 } from '@/features/auth/matricula'
+import { formatarTelefone } from '@/lib/utils'
 import { chavesAdmin, criarUsuario, type Credenciais, type NovoUsuario, type Papel } from './api'
 import { CredenciaisDialog } from './CredenciaisDialog'
 
@@ -80,7 +81,12 @@ export function NovoUsuarioDialog({ papel }: { papel: Papel }) {
     onChange: (e: { target: { value: string } }) =>
       setForm((f) => ({
         ...f,
-        [chave]: chave === 'matricula' ? normalizarMatricula(e.target.value) : e.target.value,
+        [chave]:
+          chave === 'matricula'
+            ? normalizarMatricula(e.target.value)
+            : chave === 'telefone'
+              ? formatarTelefone(e.target.value)
+              : e.target.value,
       })),
   })
 
@@ -157,7 +163,7 @@ export function NovoUsuarioDialog({ papel }: { papel: Papel }) {
               </div>
               <div className="flex flex-col gap-2">
                 <Label htmlFor="novo-telefone">Telefone</Label>
-                <Input {...campo('telefone')} type="tel" autoComplete="off" />
+                <Input {...campo('telefone')} type="tel" inputMode="tel" placeholder="(88) 99999-9999" autoComplete="off" />
               </div>
             </div>
             {ehUsuario && (

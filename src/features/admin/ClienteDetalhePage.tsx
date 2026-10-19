@@ -13,7 +13,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/componen
 import { contarTratadas } from '@/data/respostas'
 import { statusDoProjeto } from '@/data/status'
 import { useCatalogo } from '@/features/questionario/useCatalogo'
-import { formatarDataHora } from '@/lib/utils'
+import { formatarDataHora, formatarTelefone } from '@/lib/utils'
 import { AcoesProjeto } from './AcoesProjeto'
 import { AcoesUsuario } from './AcoesUsuario'
 import { buscarCliente, chavesAdmin } from './api'
@@ -68,10 +68,10 @@ export function ClienteDetalhePage() {
 
       <Card>
         <CardContent>
-          <dl className="grid gap-4 text-sm sm:grid-cols-3 lg:grid-cols-5">
+          <dl className="grid gap-4 text-sm sm:grid-cols-3 lg:grid-cols-[1.6fr_1fr_1fr_1fr_0.6fr]">
             <Info rotulo="E-mail">{cliente.email}</Info>
             <Info rotulo="Setor">{cliente.empresa}</Info>
-            <Info rotulo="Telefone">{cliente.telefone}</Info>
+            <Info rotulo="Telefone">{cliente.telefone && formatarTelefone(cliente.telefone)}</Info>
             <Info rotulo="Cadastrado em">{formatarDataHora(cliente.created_at)}</Info>
             <Info rotulo="Projetos">{String(projetos.length)}</Info>
           </dl>
@@ -163,9 +163,10 @@ function Voltar() {
 
 function Info({ rotulo, children }: { rotulo: string; children: ReactNode }) {
   return (
-    <div className="flex flex-col gap-0.5">
+    // min-w-0 + overflow-wrap: textos longos (e-mail) quebram dentro da coluna em vez de invadir a vizinha
+    <div className="flex min-w-0 flex-col gap-0.5">
       <dt className="text-muted-foreground">{rotulo}</dt>
-      <dd className="font-medium">{children || '—'}</dd>
+      <dd className="font-medium [overflow-wrap:anywhere]">{children || '—'}</dd>
     </div>
   )
 }
