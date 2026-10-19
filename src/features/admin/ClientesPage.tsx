@@ -1,14 +1,17 @@
 import { useState } from 'react'
-import { Link } from 'react-router'
+import { Link, useNavigate } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
 import {
   CircleAlertIcon,
   FolderKanbanIcon,
+  KeyRoundIcon,
   SearchIcon,
   SendIcon,
   TimerIcon,
   UsersIcon,
 } from 'lucide-react'
+import { Avatar } from '@/components/Avatar'
+import { BarraProgresso } from '@/components/BarraProgresso'
 import { Indicador, TituloPagina } from '@/components/Indicador'
 import { StatusBriefing } from '@/components/StatusBriefing'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
@@ -18,7 +21,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { progressoDoProjeto, statusDoProjeto } from '@/data/status'
 import { useCatalogo } from '@/features/questionario/useCatalogo'
-import { formatarDataHora } from '@/lib/utils'
+import { cn, formatarDataHora } from '@/lib/utils'
 import { AcoesUsuario } from './AcoesUsuario'
 import { chavesAdmin, listarClientes, type ClienteComProjetos } from './api'
 import { NovoUsuarioDialog } from './NovoUsuarioDialog'
@@ -34,6 +37,7 @@ function combina(c: ClienteComProjetos, busca: string) {
 
 export function ClientesPage() {
   const [busca, setBusca] = useState('')
+  const navigate = useNavigate()
   const dados = useQuery({ queryKey: chavesAdmin.clientes, queryFn: listarClientes })
   const catalogo = useCatalogo()
 
@@ -102,68 +106,101 @@ export function ClientesPage() {
           <Table>
             <TableHeader>
               <TableRow className="hover:bg-transparent">
-                <TableHead>Matrícula</TableHead>
-                <TableHead>Usuário</TableHead>
+                <TableHead className="w-[38%]">Usuário</TableHead>
                 <TableHead>Projetos</TableHead>
-                <TableHead>Cadastro</TableHead>
+                <TableHead className="w-32">Cadastro</TableHead>
                 <TableHead className="w-10">
                   <span className="sr-only">Ações</span>
                 </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {lista.map((c) => (
-                <TableRow key={c.id} className={c.ativo ? undefined : 'opacity-60'}>
-                  <TableCell className="align-top font-mono text-xs">{c.matricula}</TableCell>
-                  <TableCell className="align-top">
-                    <Link to={`/admin/usuarios/${c.id}`} className="font-medium hover:text-primary hover:underline">
-                      {c.nome}
-                    </Link>
-                    <div className="text-xs text-muted-foreground">
-                      {[c.empresa, c.email].filter(Boolean).join(' · ') || '—'}
-                    </div>
-                    <div className="mt-1 flex flex-wrap gap-1">
-                      {!c.ativo && <Badge variant="destructive">Inativo</Badge>}
-                      {c.ativo && c.senha_provisoria && <Badge variant="outline">Senha provisória</Badge>}
-                    </div>
-                  </TableCell>
-                  <TableCell className="align-top">
-                    {c.projetos.length === 0 ? (
-                      <span className="text-xs text-muted-foreground">Nenhum projeto</span>
-                    ) : (
-                      <ul className="flex flex-col gap-1.5">
-                        {c.projetos.map((p) => {
-                          const { feitas, total } = progressoDoProjeto(
-                            p,
-                            catalogo.data,
-                            dados.data.respostas.get(p.id) ?? new Map(),
-                          )
-                          return (
-                            <li key={p.id} className="flex flex-wrap items-center gap-2">
-                              <Link to={`/admin/projetos/${p.id}`} className="text-sm hover:text-primary hover:underline">
-                                {p.nome}
-                              </Link>
-                              <StatusBriefing status={statusDoProjeto(p.anexos)} />
-                              <span className="font-mono text-xs text-muted-foreground tabular-nums">
-                                {feitas}/{total}
-                              </span>
-                            </li>
-                          )
-                        })}
-                      </ul>
-                    )}
-                  </TableCell>
-                  <TableCell className="align-top text-xs text-muted-foreground">
-                    {formatarDataHora(c.created_at)}
-                  </TableCell>
-                  <TableCell className="align-top">
-                    <AcoesUsuario usuario={c} papel="cliente" comLinkDetalhe />
-                  </TableCell>
-                </TableRow>
-              ))}
+              {lista.map((c) => {
+                const [data, hora] = formatarDataHora(c.created_at).split(', ')
+                return (
+                  <TableRow
+                    key={c.id}
+                    // A linha inteira abre o usuário; links e o menu de ações param o clique
+                    onClick={() => navigate(`/admin/usuarios/${c.id}`)}
+                    className={cn('group cursor-pointer', !c.ativo && 'opacity-60')}
+                  >
+                    <TableCell className="py-3.5">
+                      <div className="flex items-center gap-3">
+                        <Avatar nome={c.nome} />
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Link
+                              to={`/admin/usuarios/${c.id}`}
+                              onClick={(e) => e.stopPropagation()}
+                              className="font-medium group-hover:text-primary"
+                            >
+                              {c.nome}
+                            </Link>
+                            <span className="rounded-md border bg-muted/60 px-1.5 py-0.5 font-mono text-[0.7rem] text-muted-foreground">
+                              {c.matricula}
+                            </span>
+                            {!c.ativo && <Badge variant="destructive">Inativo</Badge>}
+                            {c.ativo && c.senha_provisoria && (
+                              <Badge variant="outline" className="gap-1 text-muted-foreground">
+                                <KeyRoundIcon />
+                                Senha provisória
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
+                            {c.empresa && <span className="font-medium text-foreground/80">{c.empresa}</span>}
+                            {c.empresa && c.email && <span aria-hidden>·</span>}
+                            {c.email && <span className="truncate">{c.email}</span>}
+                            {!c.empresa && !c.email && <span>—</span>}
+                          </div>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="py-3.5">
+                      {c.projetos.length === 0 ? (
+                        <span className="text-xs text-muted-foreground">Nenhum projeto</span>
+                      ) : (
+                        <ul className="flex flex-col gap-2.5">
+                          {c.projetos.map((p) => {
+                            const { feitas, total } = progressoDoProjeto(
+                              p,
+                              catalogo.data,
+                              dados.data.respostas.get(p.id) ?? new Map(),
+                            )
+                            return (
+                              <li key={p.id} className="flex flex-col gap-1.5">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <Link
+                                    to={`/admin/projetos/${p.id}`}
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="text-sm font-medium hover:text-primary hover:underline"
+                                  >
+                                    {p.nome}
+                                  </Link>
+                                  <StatusBriefing status={statusDoProjeto(p.anexos)} />
+                                </div>
+                                <BarraProgresso feitas={feitas} total={total} className="max-w-56" />
+                              </li>
+                            )
+                          })}
+                        </ul>
+                      )}
+                    </TableCell>
+                    <TableCell className="py-3.5 text-xs">
+                      <div>{data}</div>
+                      <div className="text-muted-foreground">{hora}</div>
+                    </TableCell>
+                    <TableCell className="py-3.5">
+                      <div onClick={(e) => e.stopPropagation()}>
+                        <AcoesUsuario usuario={c} papel="cliente" comLinkDetalhe />
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
               {lista.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="py-8 text-center text-muted-foreground">
+                  <TableCell colSpan={4} className="py-8 text-center text-muted-foreground">
                     Nenhum usuário encontrado para "{busca}".
                   </TableCell>
                 </TableRow>
