@@ -1,3 +1,4 @@
+import type { ArquivoAnexado } from '@/lib/arquivos'
 import type { Json, Tables } from '@/lib/database.types'
 import type { Pergunta } from './questions'
 
@@ -14,12 +15,34 @@ export interface ValorComOutro {
  * - multipla_escolha: string[]
  * - escala: number
  * - escolha com `permiteOutro`: { opcoes, outro }
+ * - arquivos: ArquivoAnexado[] ({ caminho, nome, tamanho, tipo })
  */
-export type ValorResposta = string | string[] | number | ValorComOutro
+export type ValorResposta = string | string[] | number | ValorComOutro | ArquivoAnexado[]
+
+export function ehListaDeArquivos(valor: ValorResposta | null): valor is ArquivoAnexado[] {
+  return Array.isArray(valor) && valor.length > 0 && typeof valor[0] === 'object'
+}
+
+function lerArquivo(v: Json): ArquivoAnexado | null {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return null
+  if (typeof v.caminho !== 'string' || typeof v.nome !== 'string') return null
+  return {
+    caminho: v.caminho,
+    nome: v.nome,
+    tamanho: typeof v.tamanho === 'number' ? v.tamanho : 0,
+    tipo: typeof v.tipo === 'string' ? v.tipo : '',
+  }
+}
 
 export function lerValor(json: Json | null | undefined): ValorResposta | null {
   if (typeof json === 'string' || typeof json === 'number') return json
-  if (Array.isArray(json)) return json.filter((v): v is string => typeof v === 'string')
+  if (Array.isArray(json)) {
+    // Lista de objetos = arquivos anexados; lista de textos = múltipla escolha
+    if (json.some((v) => v !== null && typeof v === 'object')) {
+      return json.map(lerArquivo).filter((a): a is ArquivoAnexado => a !== null)
+    }
+    return json.filter((v): v is string => typeof v === 'string')
+  }
   if (json && typeof json === 'object') {
     const opcoes = Array.isArray(json.opcoes)
       ? json.opcoes.filter((v): v is string => typeof v === 'string')
@@ -49,6 +72,7 @@ export function formatarValor(pergunta: Pergunta, valor: ValorResposta | null): 
     return pergunta.tipo === 'escala' ? `${valor} de ${pergunta.max}` : String(valor)
   }
   if (typeof valor === 'string') return valor
+  if (ehListaDeArquivos(valor)) return valor.map((a) => a.nome).join(', ')
   if (Array.isArray(valor)) return valor.join(', ')
   const outro = valor.outro.trim()
   return [...valor.opcoes, ...(outro ? [`Outro: ${outro}`] : [])].join(', ')

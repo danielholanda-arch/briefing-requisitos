@@ -72,6 +72,11 @@ Cada feature tem um `api.ts` com as chamadas ao Supabase; componentes não chama
 - Perguntas ficam no banco (`secoes`, `perguntas`) e os admins editam em /admin/questionarios/:id.
   O `id` da pergunta é o `answers.question_id` e NUNCA muda (trigger bloqueia). O tipo só muda
   enquanto ninguém respondeu; pergunta respondida não se exclui (FK): arquiva-se (`ativa = false`).
+- Pergunta tipo `arquivos`: upload para o bucket PRIVADO `anexos`, caminho
+  `{projeto_id}/{question_id}/{uuid}-{nome}`; a resposta guarda `[{ caminho, nome, tamanho, tipo }]`.
+  Até 5 arquivos de 10 MB (PDF, Office, CSV, imagem, texto), regras em `private.pode_anexar`.
+  Download só por link temporário (`createSignedUrl`). Storage não tem cascade: excluir projeto
+  (`removerArquivosDoProjeto`) ou usuário (Edge Function) apaga os arquivos antes.
 - Respostas: tabela `answers`, chave (projeto_id, question_id), salvas com upsert.
   `skipped = true` significa "prefiro conversar na reunião".
 

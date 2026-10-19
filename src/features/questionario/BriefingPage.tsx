@@ -342,6 +342,7 @@ function Questionario({
                   resposta={porId.get(p.id)}
                   salvar={salvar}
                   onAlterar={onAlterar}
+                  projetoId={projeto.id}
                 />
               ))}
             </CardContent>

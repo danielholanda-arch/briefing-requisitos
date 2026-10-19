@@ -210,6 +210,18 @@ Deno.serve(async (req) => {
       const alvo = await garantirAlvo(body.user_id, false)
       if (!alvo) return json({ error: 'Cliente não encontrado' }, 404)
 
+      // Arquivos anexados não têm cascade: apaga do Storage antes ({projeto}/{pergunta}/{arquivo})
+      const { data: projetos } = await admin.from('projetos').select('id').eq('cliente_id', alvo.id)
+      for (const { id: projetoId } of projetos ?? []) {
+        const { data: pastas } = await admin.storage.from('anexos').list(projetoId)
+        const caminhos: string[] = []
+        for (const pasta of pastas ?? []) {
+          const { data: arquivos } = await admin.storage.from('anexos').list(`${projetoId}/${pasta.name}`)
+          for (const a of arquivos ?? []) caminhos.push(`${projetoId}/${pasta.name}/${a.name}`)
+        }
+        if (caminhos.length) await admin.storage.from('anexos').remove(caminhos)
+      }
+
       // on delete cascade remove perfil, papel, projetos e respostas
       const { error } = await admin.auth.admin.deleteUser(alvo.id)
       if (error) return json({ error: error.message }, 500)

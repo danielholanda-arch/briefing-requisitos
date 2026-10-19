@@ -99,6 +99,8 @@ function paraPergunta(r: Rascunho, id: string): Pergunta {
         rotuloMin: r.rotuloMin,
         rotuloMax: r.rotuloMax,
       }
+    case 'arquivos':
+      return { ...base, tipo: 'arquivos' }
   }
 }
 

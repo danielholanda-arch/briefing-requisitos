@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils'
 import type { Pergunta } from '@/data/questions'
 import { lerValor, type Resposta, type ValorComOutro, type ValorResposta } from '@/data/respostas'
 import type { RascunhoResposta } from './api'
+import { CampoArquivos } from './CampoArquivos'
 import { useAutosave, type EstadoAutosave } from './useAutosave'
 
 interface Props {
@@ -21,9 +22,11 @@ interface Props {
   onAlterar: (r: RascunhoResposta) => void
   /** Pré-visualização no editor de perguntas: não mostra o estado de salvamento */
   previa?: boolean
+  /** Projeto da resposta (necessário para perguntas do tipo "arquivos") */
+  projetoId?: string
 }
 
-export function QuestionField({ pergunta, numero, resposta, salvar, onAlterar, previa }: Props) {
+export function QuestionField({ pergunta, numero, resposta, salvar, onAlterar, previa, projetoId }: Props) {
   const idBase = useId()
   const [valor, setValor] = useState<ValorResposta | null>(() => lerValor(resposta?.value))
   const [pulada, setPulada] = useState(resposta?.skipped ?? false)
@@ -63,6 +66,7 @@ export function QuestionField({ pergunta, numero, resposta, salvar, onAlterar, p
         <EntradaPergunta
           pergunta={pergunta}
           idBase={idBase}
+          projetoId={projetoId}
           valor={valor}
           desabilitada={pulada}
           onChange={(v) => alterar({ valor: v })}
@@ -117,13 +121,25 @@ function IndicadorSalvamento({
 interface EntradaProps {
   pergunta: Pergunta
   idBase: string
+  projetoId?: string
   valor: ValorResposta | null
   desabilitada: boolean
   onChange: (valor: ValorResposta | null) => void
 }
 
-function EntradaPergunta({ pergunta, idBase, valor, desabilitada, onChange }: EntradaProps) {
+function EntradaPergunta({ pergunta, idBase, projetoId, valor, desabilitada, onChange }: EntradaProps) {
   switch (pergunta.tipo) {
+    case 'arquivos':
+      return (
+        <CampoArquivos
+          questionId={pergunta.id}
+          projetoId={projetoId}
+          valor={valor}
+          desabilitada={desabilitada}
+          onChange={onChange}
+        />
+      )
+
     case 'texto':
       return (
         <Input
@@ -222,7 +238,9 @@ const OUTRO = '__outro__'
 function comOutro(valor: ValorResposta | null): ValorComOutro {
   if (valor && typeof valor === 'object' && !Array.isArray(valor)) return valor
   if (typeof valor === 'string' && valor) return { opcoes: [valor], outro: '' }
-  if (Array.isArray(valor)) return { opcoes: valor, outro: '' }
+  if (Array.isArray(valor)) {
+    return { opcoes: valor.filter((v): v is string => typeof v === 'string'), outro: '' }
+  }
   return { opcoes: [], outro: '' }
 }
 

@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase'
 import type { Tables, TablesInsert } from '@/lib/database.types'
+import { removerArquivosDoProjeto } from '@/lib/arquivos'
 import { invocarAdminUsers } from '@/lib/funcoes'
 import { agruparPorProjeto, type Resposta } from '@/data/respostas'
 import type { ProjetoComAnexos } from '@/data/status'
@@ -147,8 +148,9 @@ export async function reabrirQuestionario(projetoId: string, questionarioId: str
   if (error) throw new Error('Não foi possível reabrir o questionário.')
 }
 
-/** Apaga o projeto e as respostas dele. */
+/** Apaga o projeto, as respostas (cascade) e os arquivos anexados (Storage não tem cascade). */
 export async function excluirProjeto(id: string): Promise<void> {
+  await removerArquivosDoProjeto(id)
   const { error } = await supabase.from('projetos').delete().eq('id', id)
   if (error) throw new Error('Não foi possível excluir o projeto.')
 }

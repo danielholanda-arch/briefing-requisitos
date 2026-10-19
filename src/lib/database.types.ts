@@ -333,6 +333,7 @@ export type Database = {
         | "escolha_unica"
         | "multipla_escolha"
         | "escala"
+        | "arquivos"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -468,6 +469,7 @@ export const Constants = {
         "escolha_unica",
         "multipla_escolha",
         "escala",
+        "arquivos",
       ],
     },
   },

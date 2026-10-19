@@ -17,6 +17,7 @@ export const ROTULO_TIPO: Record<TipoPergunta, string> = {
   escolha_unica: 'Escolha única',
   multipla_escolha: 'Múltipla escolha',
   escala: 'Escala',
+  arquivos: 'Arquivos',
 }
 
 interface PerguntaBase {
@@ -44,6 +45,8 @@ export type Pergunta =
       rotuloMin: string
       rotuloMax: string
     })
+  /** Upload de até 5 arquivos (bucket privado "anexos"). O valor vira ArquivoAnexado[]. */
+  | (PerguntaBase & { tipo: 'arquivos' })
 
 export interface Secao {
   id: string
@@ -91,6 +94,8 @@ export function linhaParaPergunta(l: LinhaPergunta): Pergunta {
         rotuloMin: l.rotulo_min ?? '',
         rotuloMax: l.rotulo_max ?? '',
       }
+    case 'arquivos':
+      return { ...base, tipo: 'arquivos' }
   }
 }
 
