@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { CircleAlertIcon, PencilIcon, ShieldCheckIcon } from 'lucide-react'
+import { Avatar } from '@/components/Avatar'
 import { TituloPagina } from '@/components/Indicador'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
@@ -8,7 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { useAuth } from '@/features/auth/useAuth'
-import { formatarDataHora } from '@/lib/utils'
+import { cn, formatarDataHora } from '@/lib/utils'
 import { AcoesUsuario } from './AcoesUsuario'
 import { chavesAdmin, listarAdmins, type Perfil } from './api'
 import { EditarDadosDialog } from './EditarDadosDialog'
@@ -41,7 +42,39 @@ export function AdminsPage() {
           <AlertDescription>{admins.error.message}</AlertDescription>
         </Alert>
       ) : (
-        <div className="overflow-hidden rounded-xl border bg-card">
+        <>
+          {/* Celular: um cartão por admin */}
+          <ul className="flex flex-col gap-3 md:hidden">
+            {admins.data.map((a) => {
+              const voce = a.id === user?.id
+              return (
+                <li
+                  key={a.id}
+                  className={cn('flex items-start gap-3 rounded-xl border bg-card p-4', !a.ativo && 'opacity-60')}
+                >
+                  <Avatar nome={a.nome} />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-medium">{a.nome}</span>
+                      {voce && <Badge variant="secondary">Você</Badge>}
+                    </div>
+                    <div className="mt-0.5 font-mono text-xs text-muted-foreground">{a.matricula}</div>
+                    {a.email && (
+                      <div className="text-xs text-muted-foreground [overflow-wrap:anywhere]">{a.email}</div>
+                    )}
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <Situacao admin={a} />
+                      <span className="text-xs text-muted-foreground">desde {formatarDataHora(a.created_at)}</span>
+                    </div>
+                  </div>
+                  <AcoesAdmin admin={a} voce={voce} onEditarProprio={() => setEditarProprio(a)} />
+                </li>
+              )
+            })}
+          </ul>
+
+          {/* Computador: tabela */}
+          <div className="hidden overflow-hidden rounded-xl border bg-card md:block">
           <Table>
             <TableHeader>
               <TableRow className="hover:bg-transparent">
@@ -69,33 +102,19 @@ export function AdminsPage() {
                       {a.email && <span className="block text-xs font-normal text-muted-foreground">{a.email}</span>}
                     </TableCell>
                     <TableCell>
-                      {!a.ativo ? (
-                        <Badge variant="destructive">Inativo</Badge>
-                      ) : a.senha_provisoria ? (
-                        <Badge variant="outline">Senha provisória</Badge>
-                      ) : (
-                        <Badge variant="outline" className="gap-1.5">
-                          <span className="size-1.5 rounded-full bg-success" aria-hidden />
-                          Ativo
-                        </Badge>
-                      )}
+                      <Situacao admin={a} />
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">{formatarDataHora(a.created_at)}</TableCell>
                     <TableCell>
-                      {voce ? (
-                        <Button variant="ghost" size="icon-sm" aria-label="Editar meus dados" title="Editar meus dados" onClick={() => setEditarProprio(a)}>
-                          <PencilIcon />
-                        </Button>
-                      ) : (
-                        <AcoesUsuario usuario={a} papel="admin" />
-                      )}
+                      <AcoesAdmin admin={a} voce={voce} onEditarProprio={() => setEditarProprio(a)} />
                     </TableCell>
                   </TableRow>
                 )
               })}
             </TableBody>
           </Table>
-        </div>
+          </div>
+        </>
       )}
       {editarProprio && (
         <EditarDadosDialog
@@ -110,5 +129,32 @@ export function AdminsPage() {
         excluídos, apenas desativados.
       </p>
     </div>
+  )
+}
+
+function Situacao({ admin: a }: { admin: Perfil }) {
+  if (!a.ativo) return <Badge variant="destructive">Inativo</Badge>
+  if (a.senha_provisoria) return <Badge variant="outline">Senha provisória</Badge>
+  return (
+    <Badge variant="outline" className="gap-1.5">
+      <span className="size-1.5 rounded-full bg-success" aria-hidden />
+      Ativo
+    </Badge>
+  )
+}
+
+/** Na própria conta só dá para editar os dados; nos outros admins, o menu completo. */
+function AcoesAdmin({ admin, voce, onEditarProprio }: { admin: Perfil; voce: boolean; onEditarProprio: () => void }) {
+  if (!voce) return <AcoesUsuario usuario={admin} papel="admin" />
+  return (
+    <Button
+      variant="ghost"
+      size="icon-sm"
+      aria-label="Editar meus dados"
+      title="Editar meus dados"
+      onClick={onEditarProprio}
+    >
+      <PencilIcon />
+    </Button>
   )
 }

@@ -233,7 +233,8 @@ export function PerguntasPage() {
                       )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-0.5">
+                  {/* No celular os botões ficam numa linha própria, alinhados à direita */}
+                  <div className="flex w-full items-center justify-end gap-0.5 border-t pt-2 sm:w-auto sm:border-0 sm:pt-0">
                     <BotaoIcone
                       rotulo="Subir"
                       disabled={pi === 0 || mover.isPending}

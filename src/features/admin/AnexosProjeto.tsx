@@ -56,9 +56,9 @@ export function AnexarQuestionario({ projeto, catalogo }: { projeto: ProjetoComA
   if (disponiveis.length === 0) return null
 
   return (
-    <div className="flex flex-wrap items-center gap-2 print:hidden">
+    <div className="flex w-full items-center gap-2 sm:w-auto print:hidden">
       <Select value={escolhido} onValueChange={setEscolhido}>
-        <SelectTrigger className="w-64" aria-label="Questionário para anexar">
+        <SelectTrigger className="min-w-0 flex-1 sm:w-64 sm:flex-none" aria-label="Questionário para anexar">
           <SelectValue placeholder="Escolha um questionário" />
         </SelectTrigger>
         <SelectContent>

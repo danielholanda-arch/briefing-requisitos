@@ -1,10 +1,11 @@
-import { useCallback, useEffect, type ReactNode } from 'react'
+import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { Link, Navigate, useParams, useSearchParams } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowLeftIcon,
   ArrowRightIcon,
   CheckCircle2Icon,
+  ChevronDownIcon,
   CircleAlertIcon,
   CircleIcon,
   Loader2Icon,
@@ -210,8 +211,11 @@ function Questionario({
     window.scrollTo({ top: 0 })
   }, [etapa])
 
+  const [mostrarSecoes, setMostrarSecoes] = useState(false)
+
   function irPara(nova: number) {
     setParams(nova === 0 ? {} : { etapa: String(nova) })
+    setMostrarSecoes(false)
   }
 
   // Atualiza o cache na hora para o progresso refletir o que está na tela
@@ -258,7 +262,7 @@ function Questionario({
 
   return (
     <div className="grid gap-6 lg:grid-cols-[17rem_1fr] lg:items-start">
-      <aside className="flex flex-col gap-5 lg:sticky lg:top-24">
+      <aside className="flex flex-col gap-4 lg:sticky lg:top-8 lg:gap-5">
         <div>
           <p className="font-mono text-xs tracking-[0.2em] text-primary uppercase">{questionario.info.nome}</p>
           <h1 className="mt-1 text-2xl leading-tight font-semibold tracking-tight">{projeto.nome}</h1>
@@ -271,8 +275,27 @@ function Questionario({
           <p className="text-xs text-muted-foreground">Salvamento automático</p>
         </div>
 
-        <nav aria-label="Seções" className="-mx-4 overflow-x-auto px-4 lg:mx-0 lg:overflow-visible lg:px-0">
-          <ol className="flex gap-1.5 lg:flex-col">
+        {/* No celular, a lista de seções abre e fecha por este botão */}
+        <button
+          type="button"
+          onClick={() => setMostrarSecoes((v) => !v)}
+          aria-expanded={mostrarSecoes}
+          aria-controls="lista-secoes"
+          className="flex w-full items-center justify-between gap-3 rounded-lg border bg-card px-3 py-2.5 text-left text-sm lg:hidden"
+        >
+          <span className="min-w-0">
+            <span className="block font-mono text-xs text-muted-foreground">
+              {etapa < etapaRevisao
+                ? `Seção ${String(etapa + 1).padStart(2, '0')} de ${String(secoes.length).padStart(2, '0')}`
+                : 'Última etapa'}
+            </span>
+            <span className="block truncate font-medium">{secao?.titulo ?? 'Revisar e enviar'}</span>
+          </span>
+          <ChevronDownIcon className={cn('size-4 shrink-0 transition-transform', mostrarSecoes && 'rotate-180')} />
+        </button>
+
+        <nav id="lista-secoes" aria-label="Seções" className={cn(!mostrarSecoes && 'hidden', 'lg:block')}>
+          <ol className="flex flex-col gap-1.5">
             {secoes.map((s, i) => {
               const completa = s.perguntas.every((p) => perguntaTratada(porId.get(p.id)))
               return (
@@ -327,7 +350,8 @@ function Questionario({
           <Revisao projeto={projeto} questionario={questionario} porId={porId} irPara={irPara} />
         )}
 
-        <div className="flex justify-between gap-3">
+        {/* No celular fica fixo no rodapé da tela */}
+        <div className="sticky bottom-0 z-10 -mx-4 flex justify-between gap-3 border-t bg-background/95 px-4 py-3 backdrop-blur-md lg:static lg:mx-0 lg:border-0 lg:bg-transparent lg:p-0 lg:backdrop-blur-none">
           <Button variant="outline" onClick={() => irPara(etapa - 1)} className={cn(etapa === 0 && 'invisible')}>
             <ArrowLeftIcon />
             Anterior

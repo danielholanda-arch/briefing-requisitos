@@ -1,9 +1,14 @@
 import { Outlet } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
-import { Cabecalho } from '@/components/Cabecalho'
+import { FolderKanbanIcon } from 'lucide-react'
+import { LayoutMenuLateral, type ItemMenu } from '@/components/MenuLateral'
 import { buscarMeuPerfil, chavePerfil } from '@/features/auth/api'
 import { useAuth } from '@/features/auth/useAuth'
 
+// Sem `exato`: continua destacado dentro de um projeto/questionário
+const menu: ItemMenu[] = [{ para: '/questionario', rotulo: 'Projetos', icone: <FolderKanbanIcon /> }]
+
+/** Mesmo layout do admin: menu lateral no computador, barra superior + gaveta no celular. */
 export function ClienteLayout() {
   const { user } = useAuth()
   const perfil = useQuery({
@@ -12,11 +17,8 @@ export function ClienteLayout() {
   })
 
   return (
-    <div className="min-h-svh">
-      <Cabecalho inicio="/questionario" usuario={perfil.data?.matricula} />
-      <main className="mx-auto max-w-6xl px-4 py-8">
-        <Outlet />
-      </main>
-    </div>
+    <LayoutMenuLateral inicio="/questionario" menu={menu} usuario={perfil.data?.matricula}>
+      <Outlet />
+    </LayoutMenuLateral>
   )
 }

@@ -152,8 +152,14 @@ function EntradaPergunta({ pergunta, idBase, valor, desabilitada, onChange }: En
       const atual = typeof valor === 'number' ? valor : null
       const notas = Array.from({ length: pergunta.max - pergunta.min + 1 }, (_, i) => pergunta.min + i)
       return (
-        <div className="flex flex-col gap-1.5">
-          <div className="flex gap-2" role="radiogroup" aria-label={pergunta.titulo}>
+        // w-fit: os rótulos acompanham a largura da escala; no celular as colunas encolhem até caber
+        <div className="flex w-fit max-w-full flex-col gap-1.5">
+          <div
+            className="grid gap-1.5 sm:gap-2"
+            style={{ gridTemplateColumns: `repeat(${notas.length}, minmax(0, 2.5rem))` }}
+            role="radiogroup"
+            aria-label={pergunta.titulo}
+          >
             {notas.map((n) => (
               <Button
                 key={n}
@@ -161,7 +167,7 @@ function EntradaPergunta({ pergunta, idBase, valor, desabilitada, onChange }: En
                 role="radio"
                 aria-checked={atual === n}
                 variant={atual === n ? 'default' : 'outline'}
-                size="icon-lg"
+                className="h-10 w-full min-w-0 px-0 tabular-nums"
                 disabled={desabilitada}
                 onClick={() => onChange(atual === n ? null : n)}
               >
@@ -169,12 +175,9 @@ function EntradaPergunta({ pergunta, idBase, valor, desabilitada, onChange }: En
               </Button>
             ))}
           </div>
-          <div
-            className="flex justify-between text-xs text-muted-foreground"
-            style={{ maxWidth: `${notas.length * 2.75}rem` }}
-          >
+          <div className="flex justify-between gap-4 text-xs text-muted-foreground">
             <span>{pergunta.rotuloMin}</span>
-            <span>{pergunta.rotuloMax}</span>
+            <span className="text-right">{pergunta.rotuloMax}</span>
           </div>
         </div>
       )
