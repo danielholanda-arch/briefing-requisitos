@@ -1,0 +1,222 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "@fontsource-variable/geist";
+@import "@fontsource-variable/geist-mono";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+    --font-heading: var(--font-sans);
+    --font-sans: 'Geist Variable', sans-serif;
+    --color-sidebar-ring: var(--sidebar-ring);
+    --color-sidebar-border: var(--sidebar-border);
+    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+    --color-sidebar-accent: var(--sidebar-accent);
+    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+    --color-sidebar-primary: var(--sidebar-primary);
+    --color-sidebar-foreground: var(--sidebar-foreground);
+    --color-sidebar: var(--sidebar);
+    --color-chart-5: var(--chart-5);
+    --color-chart-4: var(--chart-4);
+    --color-chart-3: var(--chart-3);
+    --color-chart-2: var(--chart-2);
+    --color-chart-1: var(--chart-1);
+    --color-ring: var(--ring);
+    --color-input: var(--input);
+    --color-border: var(--border);
+    --color-destructive: var(--destructive);
+    --color-accent-foreground: var(--accent-foreground);
+    --color-accent: var(--accent);
+    --color-muted-foreground: var(--muted-foreground);
+    --color-muted: var(--muted);
+    --color-secondary-foreground: var(--secondary-foreground);
+    --color-secondary: var(--secondary);
+    --color-primary-foreground: var(--primary-foreground);
+    --color-primary: var(--primary);
+    --color-popover-foreground: var(--popover-foreground);
+    --color-popover: var(--popover);
+    --color-card-foreground: var(--card-foreground);
+    --color-card: var(--card);
+    --color-foreground: var(--foreground);
+    --color-background: var(--background);
+    --radius-sm: calc(var(--radius) * 0.6);
+    --radius-md: calc(var(--radius) * 0.8);
+    --radius-lg: var(--radius);
+    --radius-xl: calc(var(--radius) * 1.4);
+    --radius-2xl: calc(var(--radius) * 1.8);
+    --radius-3xl: calc(var(--radius) * 2.2);
+    --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+/* Paleta UniCatólica -------------------------------------------------
+   Primary #E8611A · Secondary #1F272C · Tertiary #2F7D4F · Neutral #5B6266
+   Texto sobre o laranja é escuro (#14191C): branco sobre #E8611A não passa no contraste AA. */
+@theme {
+    --color-uc-laranja: #E8611A;
+    --color-uc-grafite: #1F272C;
+    --color-uc-verde: #2F7D4F;
+    --color-uc-cinza: #5B6266;
+    --color-uc-noite: #0E1316;
+}
+
+@theme inline {
+    --font-mono: 'Geist Mono Variable', ui-monospace, monospace;
+    --color-success: var(--success);
+    --color-success-foreground: var(--success-foreground);
+}
+
+:root {
+    --background: #F3F5F6;
+    --foreground: #1F272C;
+    --card: #FFFFFF;
+    --card-foreground: #1F272C;
+    --popover: #FFFFFF;
+    --popover-foreground: #1F272C;
+    --primary: #E8611A;
+    --primary-foreground: #14191C;
+    --secondary: #E7EBED;
+    --secondary-foreground: #1F272C;
+    --muted: #ECEFF1;
+    --muted-foreground: #5B6266;
+    --accent: #FCEADF;
+    --accent-foreground: #1F272C;
+    --destructive: #C93030;
+    --border: #DCE1E4;
+    --input: #D2D8DB;
+    --ring: #E8611A;
+    --success: #2F7D4F;
+    --success-foreground: #FFFFFF;
+    --chart-1: #E8611A;
+    --chart-2: #2F7D4F;
+    --chart-3: #5B6266;
+    --chart-4: #F2A36F;
+    --chart-5: #1F272C;
+    --radius: 0.75rem;
+    --sidebar: #1F272C;
+    --sidebar-foreground: #ECEFF1;
+    --sidebar-primary: #E8611A;
+    --sidebar-primary-foreground: #14191C;
+    --sidebar-accent: #2A343A;
+    --sidebar-accent-foreground: #ECEFF1;
+    --sidebar-border: rgb(255 255 255 / 8%);
+    --sidebar-ring: #E8611A;
+}
+
+.dark {
+    --background: #0E1316;
+    --foreground: #ECEFF1;
+    --card: #161D21;
+    --card-foreground: #ECEFF1;
+    --popover: #1F272C;
+    --popover-foreground: #ECEFF1;
+    --primary: #E8611A;
+    --primary-foreground: #14191C;
+    --secondary: #232D33;
+    --secondary-foreground: #ECEFF1;
+    --muted: #1C2429;
+    --muted-foreground: #A3ABAF;
+    --accent: #2D2520;
+    --accent-foreground: #F8D9C6;
+    --destructive: #F06A6A;
+    --border: rgb(255 255 255 / 9%);
+    --input: rgb(255 255 255 / 14%);
+    --ring: #E8611A;
+    --success: #4BAA75;
+    --success-foreground: #0B1710;
+    --chart-1: #E8611A;
+    --chart-2: #4BAA75;
+    --chart-3: #8C9498;
+    --chart-4: #F2A36F;
+    --chart-5: #ECEFF1;
+    --sidebar: #12181B;
+    --sidebar-foreground: #ECEFF1;
+    --sidebar-primary: #E8611A;
+    --sidebar-primary-foreground: #14191C;
+    --sidebar-accent: #232D33;
+    --sidebar-accent-foreground: #ECEFF1;
+    --sidebar-border: rgb(255 255 255 / 8%);
+    --sidebar-ring: #E8611A;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    @apply font-sans;
+    color-scheme: light;
+  }
+  html.dark {
+    color-scheme: dark;
+  }
+  body {
+    @apply min-h-svh bg-background text-foreground antialiased;
+    /* brilho sutil laranja/verde no fundo */
+    background-image:
+      radial-gradient(60rem 28rem at 100% -8%, color-mix(in oklab, var(--primary) 9%, transparent), transparent 65%),
+      radial-gradient(50rem 26rem at -10% 108%, color-mix(in oklab, var(--success) 8%, transparent), transparent 65%);
+    background-attachment: fixed;
+  }
+  ::selection {
+    background: color-mix(in oklab, var(--primary) 35%, transparent);
+  }
+  [data-slot="progress-indicator"] {
+    background-image: linear-gradient(90deg, var(--primary), #F4A574);
+  }
+  @media print {
+    body {
+      background: none;
+    }
+  }
+}
+
+/* Grade "futurista" usada no login e no cabeçalho */
+@utility grade-futurista {
+  background-image:
+    linear-gradient(to right, rgb(255 255 255 / 4.5%) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(255 255 255 / 4.5%) 1px, transparent 1px);
+  background-size: 44px 44px;
+}
+
+@utility texto-gradiente {
+  background-image: linear-gradient(95deg, #E8611A 10%, #F4A574 55%, #6FCB97 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+@utility linha-neon {
+  background-image: linear-gradient(90deg, transparent, #E8611A 25%, #F4A574 50%, #2F7D4F 75%, transparent);
+}
+
+/* Animações do fundo do login */
+@keyframes flutuar {
+  0% { opacity: 0; transform: translateY(24px); }
+  12% { opacity: 0.32; }
+  80% { opacity: 0.32; }
+  100% { opacity: 0; transform: translateY(-110px); }
+}
+
+@keyframes pulsar {
+  0%, 100% { opacity: 0.55; transform: scale(1); }
+  50% { opacity: 0.9; transform: scale(1.08); }
+}
+
+@utility codigo-flutuante {
+  animation: flutuar 18s ease-in-out infinite;
+}
+
+@utility brilho-pulsante {
+  animation: pulsar 9s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .codigo-flutuante {
+    animation: none;
+    opacity: 0.2;
+  }
+  .brilho-pulsante {
+    animation: none;
+  }
+}
